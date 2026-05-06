@@ -55,6 +55,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .nav-btn:hover{color:var(--text);background:rgba(128,128,128,0.14);}
 .cart-btn{color:var(--orange);background:var(--orange-glow);border-color:var(--orange-border);position:relative;}
 .cart-badge{position:absolute;top:-7px;right:-7px;background:var(--orange);color:white;width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:900;display:none;align-items:center;justify-content:center;border:2px solid var(--bg);}
+html[dir="ltr"] .cart-badge{right:auto;left:-7px;}
 .cart-badge.show{display:flex;}
 .theme-btn{width:34px;height:34px;padding:0;justify-content:center;border-radius:50%;}
 
@@ -76,7 +77,8 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .pricing-body{padding:4px 18px 14px;display:none;}
 .pricing-body.open{display:block;}
 .pricing-slabs{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px;}
-.slab-pill{background:var(--orange-glow);border:1px solid var(--orange-border);color:var(--orange);padding:5px 13px;border-radius:100px;font-size:12px;font-weight:700;}
+/* FIX: prevent pricing text from breaking across lines */
+.slab-pill{background:var(--orange-glow);border:1px solid var(--orange-border);color:var(--orange);padding:5px 13px;border-radius:100px;font-size:12px;font-weight:700;white-space:nowrap;}
 
 /* ── SEARCH + FILTER ── */
 .search-section{padding:0 24px 18px;}
@@ -109,7 +111,8 @@ html[dir="rtl"] .search-input{padding:13px 44px 13px 18px;}
 .badge{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;}
 .badge-cat{background:var(--teal-glow);color:#7ecebf;border:1px solid var(--teal-border);}
 .badge-size{background:var(--orange-glow);color:var(--orange);border:1px solid var(--orange-border);}
-.product-name{font-size:14px;font-weight:800;margin-bottom:5px;line-height:1.4;}
+/* FIX: product name always English - use ltr direction so name reads correctly */
+.product-name{font-size:14px;font-weight:800;margin-bottom:5px;line-height:1.4;direction:ltr;text-align:start;}
 .product-desc{font-size:12px;color:var(--muted);margin-bottom:11px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .add-btn{width:100%;background:var(--orange);color:white;border:none;padding:9px;border-radius:var(--radius-sm);font-family:'Tajawal',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s;}
 .add-btn:hover{background:var(--orange-d);}
@@ -121,12 +124,22 @@ html[dir="rtl"] .search-input{padding:13px 44px 13px 18px;}
 .empty-state i{font-size:44px;margin-bottom:14px;opacity:0.4;display:block;}
 .empty-state p{font-size:15px;}
 
+/* ── LOAD MORE SENTINEL ── */
+#scrollSentinel{height:1px;width:100%;}
+#loadingMore{display:none;padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;gap:8px;align-items:center;justify-content:center;}
+#loadingMore.show{display:flex;}
+#loadingMore i{animation:spin 1s linear infinite;color:var(--orange);}
+@keyframes spin{to{transform:rotate(360deg);}}
+
 /* ── CART OVERLAY + PANEL ── */
 .cart-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.65);backdrop-filter:blur(3px);display:none;opacity:0;transition:opacity 0.3s;}
 .cart-overlay.open{display:block;opacity:1;}
-.cart-panel{position:fixed;top:0;bottom:0;z-index:201;width:370px;max-width:92vw;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(-110%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);left:0;}
-html[dir="ltr"] .cart-panel{left:auto;right:0;border-right:none;border-left:1px solid var(--border);transform:translateX(110%);}
-.cart-panel.open{transform:translateX(0);}
+/* RTL: cart opens from the left */
+.cart-panel{position:fixed;top:0;bottom:0;z-index:201;width:370px;max-width:92vw;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(-110%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);left:0;}
+/* LTR: cart opens from the right */
+html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px solid var(--border);transform:translateX(110%);}
+/* FIX: open state must override both RTL and LTR transforms */
+.cart-panel.open{transform:translateX(0) !important;}
 .cart-head{padding:18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .cart-head h2{font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;}
 .cart-head h2 i{color:var(--orange);}
@@ -137,7 +150,7 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-right:none;border-left:1px 
 .ci-img{width:46px;height:46px;border-radius:7px;background:var(--card2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);overflow:hidden;}
 .ci-img img{width:100%;height:100%;object-fit:cover;}
 .ci-info{flex:1;min-width:0;}
-.ci-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
+.ci-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;direction:ltr;text-align:start;}
 .ci-size{font-size:11px;color:var(--orange);font-weight:700;}
 .ci-remove{background:none;border:none;color:var(--muted);cursor:pointer;padding:5px;border-radius:5px;transition:color 0.2s;display:flex;align-items:center;font-size:13px;}
 .ci-remove:hover{color:var(--red);}
@@ -270,6 +283,12 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-right:none;border-left:1px 
     <div class="skeleton"></div><div class="skeleton"></div>
     <div class="skeleton"></div><div class="skeleton"></div>
   </div>
+  <!-- Infinite scroll sentinel -->
+  <div id="scrollSentinel"></div>
+  <div id="loadingMore">
+    <i class="fa-solid fa-circle-notch"></i>
+    <span id="loadingMoreLabel">جاري تحميل المزيد...</span>
+  </div>
 </div>
 
 <!-- Visitor ID Footer -->
@@ -315,7 +334,7 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-right:none;border-left:1px 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
 import {
   getFirestore, collection, doc, getDoc, addDoc, getDocs,
-  query, orderBy, serverTimestamp
+  query, orderBy, limit, startAfter, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -331,12 +350,23 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// ── Constants ──
+const PAGE_SIZE = 10;
+const WHATSAPP_NUMBER = '201152192338'; // +20 11 52192338
+
 // ── State ──
-let allProducts = [], filteredProducts = [];
+let allProducts = [];      // all products loaded so far
+let filteredProducts = []; // currently filtered/displayed
 let cart = JSON.parse(localStorage.getItem('pds_cart') || '[]');
 let pricing = null, settings = {};
 let lang = localStorage.getItem('pds_lang') || 'ar';
 let currentCat = 'all', searchQ = '';
+
+// Pagination state
+let lastVisible = null;   // last Firestore doc for cursor
+let hasMore = true;       // whether more pages exist
+let isLoadingMore = false;// prevent concurrent fetches
+let allLoaded = false;    // true when ALL products are in allProducts (after search)
 
 // ── Visitor ID ──
 const visitorId = (() => {
@@ -390,7 +420,8 @@ const translations = {
     vidLabel: 'رقم العميل', searchPlaceholder: 'ابحث عن منتج...', langLabel: 'EN',
     inCart: 'في السلة', addToCart: 'أضف للسلة', empty: 'لا توجد منتجات',
     cartEmpty: 'السلة فارغة', addedToast: 'تمت الإضافة للسلة', removedToast: 'تم الحذف من السلة',
-    loading: 'جاري التحميل...', noPricing: 'تواصل معنا للسعر', egp: 'جنيه'
+    loading: 'جاري التحميل...', noPricing: 'تواصل معنا للسعر', egp: 'جنيه',
+    loadingMore: 'جاري تحميل المزيد...'
   },
   en: {
     heroSub: 'Games • Movies • Series • Software • Courses',
@@ -400,7 +431,8 @@ const translations = {
     vidLabel: 'Client ID', searchPlaceholder: 'Search products...', langLabel: 'AR',
     inCart: 'In Cart', addToCart: 'Add to Cart', empty: 'No products found',
     cartEmpty: 'Your cart is empty', addedToast: 'Added to cart', removedToast: 'Removed from cart',
-    loading: 'Loading...', noPricing: 'Contact us for price', egp: 'EGP'
+    loading: 'Loading...', noPricing: 'Contact us for price', egp: 'EGP',
+    loadingMore: 'Loading more...'
   }
 };
 
@@ -422,6 +454,7 @@ function applyLang() {
   document.getElementById('checkoutLabel').textContent = t('checkoutLabel');
   document.getElementById('vidLabel').textContent = t('vidLabel');
   document.getElementById('searchInput').placeholder = t('searchPlaceholder');
+  document.getElementById('loadingMoreLabel').textContent = t('loadingMore');
 }
 
 // ── Pricing ──
@@ -441,7 +474,10 @@ function renderPricing() {
     [...pricing.slabs].sort((a,b)=>a.maxGB-b.maxGB).forEach(s => {
       const pill = document.createElement('span');
       pill.className = 'slab-pill';
-      pill.textContent = lang === 'ar' ? `حتى ${s.maxGB} GB = ${s.priceEGP} جنيه` : `Up to ${s.maxGB} GB = ${s.priceEGP} EGP`;
+      // FIX: text stays on one line (white-space:nowrap already in CSS)
+      pill.textContent = lang === 'ar'
+        ? `حتى ${s.maxGB} غيغابايت = ${s.priceEGP} جنيه`
+        : `Up to ${s.maxGB} GB = ${s.priceEGP} EGP`;
       el.appendChild(pill);
     });
   }
@@ -464,23 +500,102 @@ function calcPrice(gb) {
   return 0;
 }
 
-// ── Products ──
+// ── Products: Paginated Loading ──
 async function loadProducts() {
   try {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const q = query(
+      collection(db, 'products'),
+      orderBy('createdAt', 'desc'),
+      limit(PAGE_SIZE)
+    );
     const snap = await getDocs(q);
-    allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const docs = snap.docs;
+    lastVisible = docs.length > 0 ? docs[docs.length - 1] : null;
+    hasMore = docs.length === PAGE_SIZE;
+    allProducts = docs.map(d => ({ id: d.id, ...d.data() }));
     filteredProducts = [...allProducts];
     buildCats();
     renderProducts(filteredProducts);
-    document.getElementById('productCount').textContent = filteredProducts.length;
+    updateCount();
   } catch {
     document.getElementById('productsGrid').innerHTML =
       `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><p>${lang==='ar'?'خطأ في تحميل المنتجات':'Error loading products'}</p></div>`;
   }
 }
 
-const catIcons = {games:'fa-gamepad',movies:'fa-film',series:'fa-tv',software:'fa-code',anime:'fa-star',cartoons:'fa-child-reaching',courses:'fa-graduation-cap',music:'fa-music',programs:'fa-code',افلام:'fa-film',العاب:'fa-gamepad',برامج:'fa-code'};
+async function loadMoreProducts() {
+  if (!hasMore || isLoadingMore || !lastVisible || allLoaded) return;
+  isLoadingMore = true;
+  document.getElementById('loadingMore').classList.add('show');
+  try {
+    const q = query(
+      collection(db, 'products'),
+      orderBy('createdAt', 'desc'),
+      startAfter(lastVisible),
+      limit(PAGE_SIZE)
+    );
+    const snap = await getDocs(q);
+    const docs = snap.docs;
+    if (docs.length > 0) {
+      lastVisible = docs[docs.length - 1];
+      hasMore = docs.length === PAGE_SIZE;
+      const newProds = docs.map(d => ({ id: d.id, ...d.data() }));
+      allProducts = [...allProducts, ...newProds];
+      buildCats();
+      applyFilters();
+    } else {
+      hasMore = false;
+    }
+  } catch {}
+  isLoadingMore = false;
+  document.getElementById('loadingMore').classList.remove('show');
+}
+
+/**
+ * Loads ALL remaining products from Firestore.
+ * Called when user types a search query so results aren't cut off by pagination.
+ * After this runs once, allLoaded = true and pagination stops.
+ */
+async function loadAllForSearch() {
+  if (allLoaded) return;
+  isLoadingMore = true;
+  document.getElementById('loadingMore').classList.add('show');
+  try {
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allLoaded = true;
+    hasMore = false;
+    lastVisible = null;
+    buildCats();
+  } catch {}
+  isLoadingMore = false;
+  document.getElementById('loadingMore').classList.remove('show');
+}
+
+// ── Intersection Observer for Infinite Scroll ──
+function setupInfiniteScroll() {
+  const sentinel = document.getElementById('scrollSentinel');
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && hasMore && !isLoadingMore && !searchQ && !allLoaded) {
+      loadMoreProducts();
+    }
+  }, { rootMargin: '200px' });
+  observer.observe(sentinel);
+}
+
+function updateCount() {
+  const count = filteredProducts.length;
+  const suffix = (hasMore && !searchQ && !allLoaded) ? '+' : '';
+  document.getElementById('productCount').textContent = count + suffix;
+}
+
+const catIcons = {
+  games:'fa-gamepad',movies:'fa-film',series:'fa-tv',software:'fa-code',
+  anime:'fa-star',cartoons:'fa-child-reaching',courses:'fa-graduation-cap',
+  music:'fa-music',programs:'fa-code',
+  افلام:'fa-film',العاب:'fa-gamepad',برامج:'fa-code'
+};
 
 function buildCats() {
   const cats = [...new Set(allProducts.map(p=>p.category).filter(Boolean))];
@@ -491,12 +606,14 @@ function buildCats() {
   cats.forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'cat-pill'; btn.dataset.cat = cat;
+    if (cat === currentCat) btn.classList.add('active');
     const ico = catIcons[cat.toLowerCase()] || catIcons[cat] || 'fa-folder';
     btn.innerHTML = `<i class="fa-solid ${ico}"></i><span>${cat}</span>`;
     btn.addEventListener('click', () => filterCat(cat));
     row.appendChild(btn);
   });
   allBtn.addEventListener('click', () => filterCat('all'));
+  allBtn.classList.toggle('active', currentCat === 'all');
 }
 
 function filterCat(cat) {
@@ -512,13 +629,14 @@ function applyFilters() {
   if (searchQ) {
     const q = searchQ.toLowerCase();
     res = res.filter(p =>
+      // Search both Arabic and English names
       (p.nameAr && p.nameAr.toLowerCase().includes(q)) ||
       (p.nameEn && p.nameEn.toLowerCase().includes(q)) ||
       (p.category && p.category.toLowerCase().includes(q))
     );
   }
   filteredProducts = res;
-  document.getElementById('productCount').textContent = res.length;
+  updateCount();
   renderProducts(res);
 }
 
@@ -529,11 +647,12 @@ function renderProducts(prods) {
     return;
   }
   grid.innerHTML = prods.map(p => {
-    const name = lang === 'ar' ? (p.nameAr || p.nameEn || '') : (p.nameEn || p.nameAr || '');
+    // FIX: Always show English name; Arabic name kept for search only
+    const name = p.nameEn || p.nameAr || '';
     const desc = lang === 'ar' ? (p.descAr || p.descEn || '') : (p.descEn || p.descAr || '');
     const inCart = cart.some(c => c.id === p.id);
     const img = p.imageUrl
-      ? `<img src="${p.imageUrl}" alt="${name}" loading="lazy" onerror="this.style.display='none'"><div class="placeholder-icon" style="display:none"><i class='fa-solid fa-image'></i></div>`
+      ? `<img src="${p.imageUrl}" alt="${name}" loading="lazy" onerror="this.style.display='none'">`
       : `<div class="placeholder-icon"><i class='fa-solid fa-image'></i></div>`;
     return `<div class="product-card">
       <div class="product-img">${img}</div>
@@ -592,7 +711,8 @@ function renderCart() {
     summary.style.display = 'none'; btn.disabled = true; return;
   }
   body.innerHTML = cart.map(p => {
-    const name = lang === 'ar' ? (p.nameAr || p.nameEn) : (p.nameEn || p.nameAr);
+    // FIX: Always show English name in cart too
+    const name = p.nameEn || p.nameAr || '';
     const img = p.imageUrl ? `<img src="${p.imageUrl}" alt="${name}" onerror="this.style.display='none'">` : `<i class="fa-solid fa-image"></i>`;
     return `<div class="cart-item">
       <div class="ci-img">${img}</div>
@@ -629,12 +749,12 @@ async function checkout() {
   if (!cart.length) return;
   const totalGB = cart.reduce((s, p) => s + (p.sizeGB || 0), 0);
   const price = calcPrice(totalGB);
-  const items = cart.map(p => `• ${lang==='ar' ? (p.nameAr||p.nameEn) : (p.nameEn||p.nameAr)} (${p.sizeGB||0} GB)`).join('\n');
+  const items = cart.map(p => `• ${p.nameEn || p.nameAr} (${p.sizeGB||0} GB)`).join('\n');
   const priceStr = price > 0 ? `${price} ${t('egp')}` : t('noPricing');
   const msg = lang === 'ar'
     ? `🛒 طلب جديد - PC Data Store\n━━━━━━━━━━━━━━━\nالمنتجات:\n${items}\n━━━━━━━━━━━━━━━\n📦 إجمالي الحجم: ${totalGB} GB\n💰 السعر: ${priceStr}\n🆔 رقم العميل: ${visitorId}`
     : `🛒 New Order - PC Data Store\n━━━━━━━━━━━━━━━\nProducts:\n${items}\n━━━━━━━━━━━━━━━\n📦 Total Size: ${totalGB} GB\n💰 Price: ${priceStr}\n🆔 Client ID: ${visitorId}`;
-  const num = settings.whatsappNumber || '201152192338';
+  const num = settings.whatsappNumber || WHATSAPP_NUMBER;
   try {
     await addDoc(collection(db, 'orders'), {
       visitorId, lang, totalGB, totalPrice: price,
@@ -665,34 +785,30 @@ async function loadSettings() {
 function applyLogo() {
   const url = settings.logoUrl;
   if (!url) return;
-  // Navbar logo
   const navBox = document.getElementById('navLogoBox');
   const navIcon = document.getElementById('navLogoIcon');
   navIcon.style.display = 'none';
   const navImg = document.createElement('img');
-  navImg.src = url;
-  navImg.alt = 'logo';
+  navImg.src = url; navImg.alt = 'logo';
   navImg.onerror = () => { navImg.remove(); navIcon.style.display = ''; };
   navBox.appendChild(navImg);
-  // Hero logo
   const heroBox = document.getElementById('heroIconBox');
   const heroIcon = document.getElementById('heroIconDefault');
   heroIcon.style.display = 'none';
   heroBox.classList.add('has-logo');
   const heroImg = document.createElement('img');
-  heroImg.src = url;
-  heroImg.alt = 'logo';
+  heroImg.src = url; heroImg.alt = 'logo';
   heroImg.onerror = () => { heroImg.remove(); heroIcon.style.display = ''; heroBox.classList.remove('has-logo'); };
   heroBox.appendChild(heroImg);
 }
 
 // ── Theme ──
 const savedTheme = localStorage.getItem('pds_theme') || 'dark';
-function applyTheme(t) {
-  const isLight = t === 'light';
+function applyTheme(th) {
+  const isLight = th === 'light';
   document.documentElement.classList.toggle('light', isLight);
   document.getElementById('themeIcon').className = isLight ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-  localStorage.setItem('pds_theme', t);
+  localStorage.setItem('pds_theme', th);
 }
 applyTheme(savedTheme);
 
@@ -704,7 +820,8 @@ async function init() {
   loadIP();
   await loadSettings();
   loadPricing();
-  loadProducts();
+  await loadProducts();
+  setupInfiniteScroll();
   track('page_visit');
 
   // Theme
@@ -738,18 +855,22 @@ async function init() {
   document.getElementById('cartOverlay').addEventListener('click', closeCart);
   document.getElementById('checkoutBtn').addEventListener('click', checkout);
 
-  // Search
-  let st;
-  document.getElementById('searchInput').addEventListener('input', e => {
+  // Search — when user types, load ALL products first so search works across everything
+  let searchTimer;
+  document.getElementById('searchInput').addEventListener('input', async e => {
     searchQ = e.target.value.trim();
-    clearTimeout(st);
-    st = setTimeout(() => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(async () => {
+      if (searchQ.length > 0) {
+        // Load all products so search covers everything, not just the first page
+        await loadAllForSearch();
+        track('search_used', { query: searchQ });
+      }
       applyFilters();
-      if (searchQ.length > 1) track('search_used', { query: searchQ });
     }, 320);
   });
 
-  // Scroll tracking
+  // Page scroll tracking
   let scrollTracked = false;
   window.addEventListener('scroll', () => {
     if (scrollTracked) return;
