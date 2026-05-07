@@ -310,11 +310,7 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
   <div class="scp-panel">
     <div class="scp-title"><i class="fa-solid fa-magnifying-glass" style="color:var(--orange);margin-left:7px;"></i>اختر القسم للبحث فيه</div>
     <div class="scp-sub">سيتم البحث فقط ضمن القسم الذي تختاره</div>
-    <div class="scp-options" id="scpOptions">
-      <button class="scp-option" onclick="pickSearchCat('العاب')"><i class="fa-solid fa-gamepad"></i>العاب</button>
-      <button class="scp-option" onclick="pickSearchCat('افلام')"><i class="fa-solid fa-film"></i>افلام</button>
-      <button class="scp-option" onclick="pickSearchCat('برامج')"><i class="fa-solid fa-code"></i>برامج</button>
-    </div>
+    <div class="scp-options" id="scpOptions"></div>
     <button class="scp-cancel" onclick="closeSearchCatPicker()">إلغاء</button>
   </div>
 </div>
@@ -414,7 +410,12 @@ const db = getFirestore(app);
 const PAGE_SIZE = 10;
 const WHATSAPP_NUMBER = '+20 11 52192338';
 const CATEGORIES = ['العاب', 'افلام', 'برامج'];
-const CAT_ICONS = { العاب: 'fa-gamepad', افلام: 'fa-film', برامج: 'fa-code' };
+const CAT_ICONS  = { العاب: 'fa-gamepad', افلام: 'fa-film', برامج: 'fa-code' };
+const CAT_LABELS = {
+  ar: { العاب: 'العاب', افلام: 'افلام', برامج: 'برامج' },
+  en: { العاب: 'Games', افلام: 'Movies', برامج: 'Software' }
+};
+function catLabel(cat) { return (CAT_LABELS[lang] || CAT_LABELS.ar)[cat] || cat; }
 
 // ── Per-category state ──
 const catState = {};
@@ -528,6 +529,15 @@ function applyLang() {
   document.getElementById('vidLabel').textContent = t('vidLabel');
   document.getElementById('loadingMoreLabel').textContent = t('loadingMore');
   updateSearchPlaceholder();
+  buildScpOptions();
+  buildCats();
+}
+
+function buildScpOptions() {
+  document.getElementById('scpOptions').innerHTML = CATEGORIES.map(cat => {
+    const ico = CAT_ICONS[cat] || 'fa-folder';
+    return `<button class="scp-option" onclick="pickSearchCat('${cat}')"><i class="fa-solid ${ico}"></i>${catLabel(cat)}</button>`;
+  }).join('');
 }
 
 function updateSearchPlaceholder() {
@@ -642,7 +652,7 @@ function buildCats() {
     btn.className = 'cat-pill' + (cat === currentCat ? ' active' : '');
     btn.dataset.cat = cat;
     const ico = CAT_ICONS[cat] || 'fa-folder';
-    btn.innerHTML = `<i class="fa-solid ${ico}"></i><span>${cat}</span>`;
+    btn.innerHTML = `<i class="fa-solid ${ico}"></i><span>${catLabel(cat)}</span>`;
     btn.addEventListener('click', () => filterCat(cat));
     row.appendChild(btn);
   });
@@ -780,7 +790,7 @@ function renderProducts(prods) {
       <div class="product-img">${img}</div>
       <div class="product-body">
         <div class="product-badges">
-          ${p.category ? `<span class="badge badge-cat"><i class="fa-solid fa-folder-open"></i>${p.category}</span>` : ''}
+          ${p.category ? `<span class="badge badge-cat"><i class="fa-solid fa-folder-open"></i>${catLabel(p.category)}</span>` : ''}
           ${p.sizeGB ? `<span class="badge badge-size"><i class="fa-solid fa-hard-drive"></i>${p.sizeGB} GB</span>` : ''}
         </div>
         <div class="product-name">${name}</div>
@@ -815,7 +825,7 @@ window.pickSearchCat = async function(cat) {
   document.getElementById('scpOverlay').classList.remove('open');
 
   // Show chip
-  document.getElementById('searchCatChipLabel').textContent = cat;
+  document.getElementById('searchCatChipLabel').textContent = catLabel(cat);
   document.getElementById('searchChipRow').style.display = 'flex';
 
   // لو في منتجات ما تحمّلت بعد — اعرض شاشة التحميل وحمّل الكل
@@ -823,10 +833,8 @@ window.pickSearchCat = async function(cat) {
     const overlay = document.getElementById('searchLoadingOverlay');
     const sloSub  = document.getElementById('sloSub');
     const sloProg = document.getElementById('sloProgress');
-    const catLabel = lang === 'ar' ? cat : cat;
-
     document.getElementById('sloTitle').textContent =
-      lang === 'ar' ? `جاري تحميل منتجات "${catLabel}"...` : `Loading "${catLabel}" products...`;
+      lang === 'ar' ? `جاري تحميل منتجات "${catLabel(cat)}"...` : `Loading "${catLabel(cat)}" products...`;
 
     overlay.classList.add('open');
     sloProg.style.width = '0%';
