@@ -201,6 +201,16 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
 .search-cat-chip i{font-size:10px;}
 .search-chip-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 
+/* ── SEARCH LOADING OVERLAY ── */
+.search-loading-overlay{position:fixed;inset:0;z-index:160;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;}
+.search-loading-overlay.open{display:flex;}
+.search-loading-box{background:var(--card);border:1px solid var(--orange-border);border-radius:18px;padding:32px 36px;text-align:center;min-width:260px;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+.slo-spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin 0.9s linear infinite;margin:0 auto 18px;}
+.slo-title{font-size:15px;font-weight:800;margin-bottom:6px;}
+.slo-sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+.slo-progress-wrap{background:var(--border);border-radius:100px;height:5px;overflow:hidden;}
+.slo-progress-fill{height:100%;background:var(--orange);border-radius:100px;transition:width 0.3s ease;width:0%;}
+
 /* ── MOBILE ── */
 @media(max-width:600px){
   .navbar{padding:0 12px;height:56px;}
@@ -336,6 +346,18 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
   <span id="vidLabel" style="opacity:0.5">رقم العميل</span>
 </div>
 <div class="footer-bar">PC Data Store &copy; 2025 — All rights reserved</div>
+
+<!-- Search Loading Overlay -->
+<div class="search-loading-overlay" id="searchLoadingOverlay">
+  <div class="search-loading-box">
+    <div class="slo-spinner"></div>
+    <div class="slo-title" id="sloTitle">جاري تحميل المنتجات للبحث...</div>
+    <div class="slo-sub" id="sloSub">يرجى الانتظار</div>
+    <div class="slo-progress-wrap">
+      <div class="slo-progress-fill" id="sloProgress"></div>
+    </div>
+  </div>
+</div>
 
 <!-- Cart Overlay -->
 <div class="cart-overlay" id="cartOverlay"></div>
@@ -796,17 +818,42 @@ window.pickSearchCat = async function(cat) {
   document.getElementById('searchCatChipLabel').textContent = cat;
   document.getElementById('searchChipRow').style.display = 'flex';
 
+  // لو في منتجات ما تحمّلت بعد — اعرض شاشة التحميل وحمّل الكل
+  if (catState[cat].hasMore) {
+    const overlay = document.getElementById('searchLoadingOverlay');
+    const sloSub  = document.getElementById('sloSub');
+    const sloProg = document.getElementById('sloProgress');
+    const catLabel = lang === 'ar' ? cat : cat;
+
+    document.getElementById('sloTitle').textContent =
+      lang === 'ar' ? `جاري تحميل منتجات "${catLabel}"...` : `Loading "${catLabel}" products...`;
+
+    overlay.classList.add('open');
+    sloProg.style.width = '0%';
+    sloSub.textContent = lang === 'ar' ? 'يرجى الانتظار' : 'Please wait...';
+
+    // حمّل كل الصفحات مع تحديث شريط التقدّم
+    let loaded = catState[cat].products.length;
+    while (catState[cat].hasMore && !catState[cat].isLoading) {
+      await loadCategoryPage(cat);
+      loaded = catState[cat].products.length;
+      // نقدّر نقول إن كل 10 = 10% كحد أدنى، تصاعدي
+      const pct = catState[cat].hasMore ? Math.min(loaded / (loaded + 10) * 100, 90) : 100;
+      sloProg.style.width = pct + '%';
+      sloSub.textContent = lang === 'ar'
+        ? `تم تحميل ${loaded} منتج...`
+        : `Loaded ${loaded} products...`;
+    }
+
+    sloProg.style.width = '100%';
+    await new Promise(r => setTimeout(r, 280)); // لحظة صغيرة عشان يشوف 100%
+    overlay.classList.remove('open');
+    mergeAllProducts();
+  }
+
   // Enable search input
   updateSearchPlaceholder();
   setTimeout(() => document.getElementById('searchInput').focus(), 50);
-
-  // حمّل الصفحة الأولى فقط إذا ما اتحمّل القسم بعد
-  if (!catState[cat].initialized) {
-    document.getElementById('loadingMore').classList.add('show');
-    await loadCategoryPage(cat);
-    document.getElementById('loadingMore').classList.remove('show');
-    mergeAllProducts();
-  }
 };
 
 window.clearSearch = function() {
