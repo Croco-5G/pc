@@ -211,6 +211,35 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
 .slo-progress-wrap{background:var(--border);border-radius:100px;height:5px;overflow:hidden;}
 .slo-progress-fill{height:100%;background:var(--orange);border-radius:100px;transition:width 0.3s ease;width:0%;}
 
+/* ── PRODUCT MODAL ── */
+.prod-modal-overlay{position:fixed;inset:0;z-index:180;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:16px;}
+.prod-modal-overlay.open{display:flex;}
+.prod-modal{background:var(--card);border:1px solid var(--orange-border);border-radius:20px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;position:relative;animation:fadeUp 0.22s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.pm-close{position:absolute;top:14px;inset-inline-end:14px;background:rgba(255,255,255,0.07);border:none;color:var(--muted);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;z-index:2;}
+.pm-close:hover{background:var(--orange-glow);color:var(--orange);}
+.pm-img-wrap{width:100%;aspect-ratio:16/9;background:var(--bg);border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.pm-img-wrap img{width:100%;height:100%;object-fit:cover;transition:opacity 0.3s;}
+.pm-img-wrap img.loading{opacity:0;}
+.pm-img-wrap img.loaded{opacity:1;}
+.pm-img-placeholder{display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);}
+.pm-img-placeholder i{font-size:36px;}
+.pm-img-placeholder span{font-size:12px;}
+.pm-img-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin 0.8s linear infinite;position:absolute;}
+.pm-body{padding:20px;}
+.pm-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.pm-name{font-size:17px;font-weight:800;margin-bottom:8px;line-height:1.4;}
+.pm-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;}
+.pm-add-btn{width:100%;padding:13px;border-radius:12px;border:none;background:var(--orange);color:#fff;font-family:'Tajawal',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;}
+.pm-add-btn:hover{opacity:0.88;}
+.pm-add-btn.added{background:var(--card);border:1px solid var(--orange-border);color:var(--orange);}
+
+/* card img → always placeholder */
+.product-card{cursor:pointer;}
+.product-img img{opacity:0;transition:opacity 0.35s ease;}
+.product-img img.img-loaded{opacity:1;}
+.product-img .placeholder-icon{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--muted);opacity:0.4;}
+
 /* ── MOBILE ── */
 @media(max-width:600px){
   .navbar{padding:0 12px;height:56px;}
@@ -237,6 +266,14 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
   .products-grid{grid-template-columns:1fr;}
 }
 </style>
+<!-- Apply theme BEFORE render to eliminate flash -->
+<script>
+(function(){
+  var saved = localStorage.getItem('pds_theme');
+  var theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  if (theme === 'light') document.documentElement.classList.add('light');
+})();
+</script>
 </head>
 <body>
 
@@ -355,6 +392,25 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
   </div>
 </div>
 
+<!-- Product Modal -->
+<div class="prod-modal-overlay" id="prodModalOverlay" onclick="closeProdModal(event)">
+  <div class="prod-modal" id="prodModal">
+    <button class="pm-close" onclick="closeProdModal()"><i class="fa-solid fa-xmark"></i></button>
+    <div class="pm-img-wrap" id="pmImgWrap">
+      <div class="pm-img-placeholder" id="pmPlaceholder">
+        <i class="fa-solid fa-image"></i>
+        <span id="pmPlaceholderText">لا توجد صورة</span>
+      </div>
+    </div>
+    <div class="pm-body">
+      <div class="pm-badges" id="pmBadges"></div>
+      <div class="pm-name" id="pmName"></div>
+      <div class="pm-desc" id="pmDesc"></div>
+      <button class="pm-add-btn" id="pmAddBtn"></button>
+    </div>
+  </div>
+</div>
+
 <!-- Cart Overlay -->
 <div class="cart-overlay" id="cartOverlay"></div>
 
@@ -409,11 +465,11 @@ const db = getFirestore(app);
 // ── Constants ──
 const PAGE_SIZE = 10;
 const WHATSAPP_NUMBER = '+20 11 52192338';
-const CATEGORIES = ['العاب', 'افلام', 'برامج'];
-const CAT_ICONS  = { العاب: 'fa-gamepad', افلام: 'fa-film', برامج: 'fa-code' };
+const CATEGORIES = ['العاب', 'افلام', 'مسلسلات', 'برامج'];
+const CAT_ICONS  = { العاب: 'fa-gamepad', افلام: 'fa-film', مسلسلات: 'fa-tv', برامج: 'fa-code' };
 const CAT_LABELS = {
-  ar: { العاب: 'العاب', افلام: 'افلام', برامج: 'برامج' },
-  en: { العاب: 'Games', افلام: 'Movies', برامج: 'Software' }
+  ar: { العاب: 'العاب', افلام: 'افلام', مسلسلات: 'مسلسلات', برامج: 'برامج' },
+  en: { العاب: 'Games', افلام: 'Movies', مسلسلات: 'Series', برامج: 'Software' }
 };
 function catLabel(cat) { return (CAT_LABELS[lang] || CAT_LABELS.ar)[cat] || cat; }
 
@@ -661,8 +717,8 @@ function buildCats() {
 }
 
 async function filterCat(cat) {
-  // Exit search mode when changing category
-  if (isSearchMode) {
+  // Exit search mode when changing category (even if user only picked a cat but didn't type yet)
+  if (isSearchMode || searchCat) {
     isSearchMode = false;
     searchQ = '';
     searchCat = null;
@@ -783,11 +839,11 @@ function renderProducts(prods) {
     const name = p.nameEn || p.nameAr || '';
     const desc = lang === 'ar' ? (p.descAr || p.descEn || '') : (p.descEn || p.descAr || '');
     const inCart = cart.some(c => c.id === p.id);
-    const img = p.imageUrl
-      ? `<img src="${p.imageUrl}" alt="${name}" loading="lazy" onerror="this.style.display='none'">`
-      : `<div class="placeholder-icon"><i class='fa-solid fa-image'></i></div>`;
-    return `<div class="product-card">
-      <div class="product-img">${img}</div>
+    const imgHtml = p.imageUrl
+      ? `<img data-src="${p.imageUrl}" alt="${name}" class="lazy-img">`
+      : `<div class="placeholder-icon"><i class="fa-solid fa-image"></i></div>`;
+    return `<div class="product-card" onclick="openProdModal('${p.id}')">
+      <div class="product-img">${imgHtml}</div>
       <div class="product-body">
         <div class="product-badges">
           ${p.category ? `<span class="badge badge-cat"><i class="fa-solid fa-folder-open"></i>${catLabel(p.category)}</span>` : ''}
@@ -803,13 +859,92 @@ function renderProducts(prods) {
     </div>`;
   }).join('');
   grid.querySelectorAll('.add-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const allProds = CATEGORIES.flatMap(c => catState[c].products);
       const p = allProds.find(x => x.id === btn.dataset.id);
       if (p) toggleCart(p);
     });
   });
+  // Lazy load images via IntersectionObserver
+  attachLazyImages();
 }
+
+function attachLazyImages() {
+  const imgs = document.querySelectorAll('img.lazy-img');
+  if (!imgs.length) return;
+  const obs = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const img = entry.target;
+      img.src = img.dataset.src;
+      img.onload  = () => img.classList.add('img-loaded');
+      img.onerror = () => { img.style.display='none'; };
+      observer.unobserve(img);
+    });
+  }, { rootMargin: '100px' });
+  imgs.forEach(img => obs.observe(img));
+}
+
+// ── Product Modal ──
+window.openProdModal = function(id) {
+  const p = CATEGORIES.flatMap(c => catState[c].products).find(x => x.id === id);
+  if (!p) return;
+
+  const name = p.nameEn || p.nameAr || '';
+  const desc = lang === 'ar' ? (p.descAr || p.descEn || '') : (p.descEn || p.descAr || '');
+  const inCart = cart.some(c => c.id === p.id);
+
+  // badges
+  document.getElementById('pmBadges').innerHTML = [
+    p.category ? `<span class="badge badge-cat"><i class="fa-solid fa-folder-open"></i>${catLabel(p.category)}</span>` : '',
+    p.sizeGB   ? `<span class="badge badge-size"><i class="fa-solid fa-hard-drive"></i>${p.sizeGB} GB</span>` : ''
+  ].join('');
+
+  document.getElementById('pmName').textContent = name;
+  document.getElementById('pmDesc').textContent = desc;
+  document.getElementById('pmDesc').style.display = desc ? '' : 'none';
+
+  // add btn
+  const btn = document.getElementById('pmAddBtn');
+  btn.className = 'pm-add-btn' + (inCart ? ' added' : '');
+  btn.innerHTML = `<i class="fa-solid ${inCart ? 'fa-check' : 'fa-cart-plus'}"></i> ${inCart ? t('inCart') : t('addToCart')}`;
+  btn.onclick = () => { toggleCart(p); openProdModal(id); }; // refresh modal state
+
+  // image: load only now
+  const wrap = document.getElementById('pmImgWrap');
+  const placeholder = document.getElementById('pmPlaceholder');
+  document.getElementById('pmPlaceholderText').textContent = lang === 'ar' ? 'لا توجد صورة' : 'No image';
+  // remove old img if any
+  wrap.querySelectorAll('img, .pm-img-spinner').forEach(el => el.remove());
+
+  if (p.imageUrl) {
+    placeholder.style.display = 'none';
+    // spinner
+    const spinner = document.createElement('div');
+    spinner.className = 'pm-img-spinner';
+    wrap.appendChild(spinner);
+    // image
+    const img = document.createElement('img');
+    img.className = 'loading';
+    img.alt = name;
+    img.onload  = () => { spinner.remove(); img.classList.replace('loading','loaded'); };
+    img.onerror = () => { spinner.remove(); placeholder.style.display = 'flex'; };
+    img.src = p.imageUrl;
+    wrap.appendChild(img);
+  } else {
+    placeholder.style.display = 'flex';
+  }
+
+  document.getElementById('prodModalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closeProdModal = function(e) {
+  if (e && e.target !== document.getElementById('prodModalOverlay')) return;
+  document.getElementById('prodModalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+};
 
 // ── Search Category Picker ──
 window.openSearchCatPicker = function() {
@@ -840,17 +975,33 @@ window.pickSearchCat = async function(cat) {
     sloProg.style.width = '0%';
     sloSub.textContent = lang === 'ar' ? 'يرجى الانتظار' : 'Please wait...';
 
-    // حمّل كل الصفحات مع تحديث شريط التقدّم
+    // حمّل كل الصفحات مع تحديث شريط التقدّم + وقت تقريبي
     let loaded = catState[cat].products.length;
+    let pageTimes = []; // نقيس وقت كل صفحة
+
     while (catState[cat].hasMore && !catState[cat].isLoading) {
+      const t0 = performance.now();
       await loadCategoryPage(cat);
+      const elapsed = performance.now() - t0;
+      pageTimes.push(elapsed);
+
       loaded = catState[cat].products.length;
-      // نقدّر نقول إن كل 10 = 10% كحد أدنى، تصاعدي
-      const pct = catState[cat].hasMore ? Math.min(loaded / (loaded + 10) * 100, 90) : 100;
+      const avgMs = pageTimes.reduce((a,b)=>a+b,0) / pageTimes.length;
+      const pct = catState[cat].hasMore ? Math.min(loaded / (loaded + PAGE_SIZE) * 100, 90) : 100;
       sloProg.style.width = pct + '%';
-      sloSub.textContent = lang === 'ar'
-        ? `تم تحميل ${loaded} منتج...`
-        : `Loaded ${loaded} products...`;
+
+      // تقدير الوقت المتبقي
+      let etaText = '';
+      if (catState[cat].hasMore) {
+        const etaSec = Math.ceil(avgMs / 1000);
+        etaText = lang === 'ar'
+          ? ` · متبقي حوالي ${etaSec < 2 ? 'أقل من ثانية' : etaSec + ' ثانية'}`
+          : ` · ~${etaSec < 2 ? '<1s' : etaSec + 's'} left`;
+      }
+
+      sloSub.textContent = (lang === 'ar'
+        ? `تم تحميل ${loaded} منتج`
+        : `Loaded ${loaded} products`) + etaText;
     }
 
     sloProg.style.width = '100%';
@@ -858,6 +1009,14 @@ window.pickSearchCat = async function(cat) {
     overlay.classList.remove('open');
     mergeAllProducts();
   }
+
+  // Navigate to the chosen category: update active tab + show its products
+  currentCat = cat;
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === cat));
+  applyFilters();
+
+  // Scroll to products section
+  document.querySelector('.products-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Enable search input
   updateSearchPlaceholder();
@@ -999,7 +1158,9 @@ function applyLogo() {
 }
 
 // ── Theme ──
-const savedTheme = localStorage.getItem('pds_theme') || 'dark';
+// First visit → follow system preference; return visits → use saved choice
+const savedTheme = localStorage.getItem('pds_theme') ||
+  (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 function applyTheme(th) {
   const isLight = th === 'light';
   document.documentElement.classList.toggle('light', isLight);
@@ -1039,10 +1200,21 @@ async function init() {
   document.getElementById('langBtn').addEventListener('click', () => {
     lang = lang === 'ar' ? 'en' : 'ar';
     localStorage.setItem('pds_lang', lang);
+
+    // Disable cart panel transition during dir switch to prevent visible slide
+    const cartPanel = document.getElementById('cartPanel');
+    cartPanel.style.transition = 'none';
+
     applyLang();
     renderPricing();
     renderProducts(filteredProducts);
     renderCart();
+
+    // Re-enable transition after layout has settled
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      cartPanel.style.transition = '';
+    }));
+
     track('language_changed', { newLang: lang });
   });
 
