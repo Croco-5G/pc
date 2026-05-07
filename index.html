@@ -183,6 +183,24 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
 .vid-bar span{font-family:monospace;color:var(--orange);font-size:11px;}
 .footer-bar{background:var(--bg2);border-top:1px solid var(--border);padding:14px 24px;text-align:center;color:var(--muted);font-size:12px;}
 
+/* ── SEARCH CAT PICKER ── */
+.scp-overlay{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.72);backdrop-filter:blur(5px);display:none;align-items:flex-start;justify-content:center;padding-top:110px;}
+.scp-overlay.open{display:flex;}
+.scp-panel{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:24px 20px;width:340px;max-width:92vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+.scp-title{font-size:15px;font-weight:800;margin-bottom:6px;}
+.scp-sub{font-size:12px;color:var(--muted);margin-bottom:18px;}
+.scp-options{display:flex;flex-direction:column;gap:9px;margin-bottom:14px;}
+.scp-option{padding:13px 16px;border-radius:11px;background:var(--card);border:1px solid var(--border);color:var(--text);font-family:'Tajawal',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:11px;transition:all 0.2s;}
+.scp-option:hover{border-color:var(--orange-border);color:var(--orange);background:var(--orange-glow);}
+.scp-option i{font-size:16px;width:20px;text-align:center;}
+.scp-cancel{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 22px;border-radius:100px;font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.scp-cancel:hover{color:var(--text);}
+/* search cat chip */
+.search-cat-chip{display:none;align-items:center;gap:5px;background:var(--orange-glow);border:1px solid var(--orange-border);color:var(--orange);padding:4px 10px 4px 8px;border-radius:100px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.search-cat-chip.show{display:flex;}
+.search-cat-chip i{font-size:10px;}
+.search-chip-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+
 /* ── MOBILE ── */
 @media(max-width:600px){
   .navbar{padding:0 12px;height:56px;}
@@ -259,15 +277,35 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
 
 <!-- Search + Filter -->
 <div class="search-section">
+  <div class="search-chip-row" id="searchChipRow" style="display:none;">
+    <div class="search-cat-chip show" id="searchCatChip" onclick="clearSearch()">
+      <i class="fa-solid fa-xmark"></i>
+      <span id="searchCatChipLabel"></span>
+    </div>
+  </div>
   <div class="search-box">
     <i class="fa-solid fa-magnifying-glass search-icon"></i>
-    <input type="text" class="search-input" id="searchInput" placeholder="ابحث عن منتج...">
+    <input type="text" class="search-input" id="searchInput" placeholder="ابحث عن منتج..." readonly>
   </div>
   <div class="cats" id="catsRow">
     <button class="cat-pill active" data-cat="all">
       <i class="fa-solid fa-border-all"></i>
       <span id="allCatLabel">الكل</span>
     </button>
+  </div>
+</div>
+
+<!-- Search Category Picker Overlay -->
+<div class="scp-overlay" id="scpOverlay">
+  <div class="scp-panel">
+    <div class="scp-title"><i class="fa-solid fa-magnifying-glass" style="color:var(--orange);margin-left:7px;"></i>اختر القسم للبحث فيه</div>
+    <div class="scp-sub">سيتم البحث فقط ضمن القسم الذي تختاره</div>
+    <div class="scp-options" id="scpOptions">
+      <button class="scp-option" onclick="pickSearchCat('العاب')"><i class="fa-solid fa-gamepad"></i>العاب</button>
+      <button class="scp-option" onclick="pickSearchCat('افلام')"><i class="fa-solid fa-film"></i>افلام</button>
+      <button class="scp-option" onclick="pickSearchCat('برامج')"><i class="fa-solid fa-code"></i>برامج</button>
+    </div>
+    <button class="scp-cancel" onclick="closeSearchCatPicker()">إلغاء</button>
   </div>
 </div>
 
@@ -331,11 +369,11 @@ html[dir="ltr"] .cart-panel{left:auto;right:0;border-left:none;border-right:1px 
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
   getFirestore, collection, doc, getDoc, addDoc, getDocs,
   query, orderBy, limit, startAfter, serverTimestamp
-} from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAicR6xHrGLlGtMAWmCbN9qdjYsr6nvv0A",
@@ -352,21 +390,28 @@ const db = getFirestore(app);
 
 // ── Constants ──
 const PAGE_SIZE = 10;
-const WHATSAPP_NUMBER = '+20 11 52192338'; // +20 11 52192338
+const WHATSAPP_NUMBER = '+20 11 52192338';
+const CATEGORIES = ['العاب', 'افلام', 'برامج'];
+const CAT_ICONS = { العاب: 'fa-gamepad', افلام: 'fa-film', برامج: 'fa-code' };
 
-// ── State ──
-let allProducts = [];      // all products loaded so far
-let filteredProducts = []; // currently filtered/displayed
+// ── Per-category state ──
+const catState = {};
+CATEGORIES.forEach(cat => {
+  catState[cat] = { products: [], lastVisible: null, hasMore: true, isLoading: false, initialized: false };
+});
+
+// ── Global state ──
+let allDisplayProducts = []; // merged & sorted from all catState
+let filteredProducts = [];
+let visibleCount = 10;
+const VISIBLE_INCREMENT = 10;
 let cart = JSON.parse(localStorage.getItem('pds_cart') || '[]');
 let pricing = null, settings = {};
 let lang = localStorage.getItem('pds_lang') || 'ar';
-let currentCat = 'all', searchQ = '';
-
-// Pagination state
-let lastVisible = null;   // last Firestore doc for cursor
-let hasMore = true;       // whether more pages exist
-let isLoadingMore = false;// prevent concurrent fetches
-let allLoaded = false;    // true when ALL products are in allProducts (after search)
+let currentCat = 'all';
+let searchQ = '';
+let searchCat = null;       // category chosen for search
+let isSearchMode = false;
 
 // ── Visitor ID ──
 const visitorId = (() => {
@@ -383,7 +428,11 @@ document.getElementById('vidDisplay').textContent = visitorId;
 // ── Track ──
 let ipData = {};
 async function loadIP() {
-  try { const r = await fetch('https://ipapi.co/json/'); ipData = await r.json(); } catch {}
+  try {
+    const r = await fetch('https://ipwho.is/');
+    const d = await r.json();
+    ipData = { ip: d.ip, country_name: d.country, city: d.city, org: d.connection?.isp || '' };
+  } catch {}
 }
 
 async function track(eventType, extra = {}) {
@@ -421,7 +470,8 @@ const translations = {
     inCart: 'في السلة', addToCart: 'أضف للسلة', empty: 'لا توجد منتجات',
     cartEmpty: 'السلة فارغة', addedToast: 'تمت الإضافة للسلة', removedToast: 'تم الحذف من السلة',
     loading: 'جاري التحميل...', noPricing: 'تواصل معنا للسعر', egp: 'جنيه',
-    loadingMore: 'جاري تحميل المزيد...'
+    loadingMore: 'جاري تحميل المزيد...',
+    searchClickHint: 'انقر لاختيار القسم والبحث'
   },
   en: {
     heroSub: 'Games • Movies • Series • Software • Courses',
@@ -432,7 +482,8 @@ const translations = {
     inCart: 'In Cart', addToCart: 'Add to Cart', empty: 'No products found',
     cartEmpty: 'Your cart is empty', addedToast: 'Added to cart', removedToast: 'Removed from cart',
     loading: 'Loading...', noPricing: 'Contact us for price', egp: 'EGP',
-    loadingMore: 'Loading more...'
+    loadingMore: 'Loading more...',
+    searchClickHint: 'Click to choose category and search'
   }
 };
 
@@ -453,8 +504,19 @@ function applyLang() {
   document.getElementById('totalPriceLabel').textContent = t('totalPriceLabel');
   document.getElementById('checkoutLabel').textContent = t('checkoutLabel');
   document.getElementById('vidLabel').textContent = t('vidLabel');
-  document.getElementById('searchInput').placeholder = t('searchPlaceholder');
   document.getElementById('loadingMoreLabel').textContent = t('loadingMore');
+  updateSearchPlaceholder();
+}
+
+function updateSearchPlaceholder() {
+  const input = document.getElementById('searchInput');
+  if (searchCat) {
+    input.placeholder = lang === 'ar' ? `ابحث في ${searchCat}...` : `Search in ${searchCat}...`;
+    input.readOnly = false;
+  } else {
+    input.placeholder = t('searchClickHint');
+    input.readOnly = true;
+  }
 }
 
 // ── Pricing ──
@@ -474,7 +536,6 @@ function renderPricing() {
     [...pricing.slabs].sort((a,b)=>a.maxGB-b.maxGB).forEach(s => {
       const pill = document.createElement('span');
       pill.className = 'slab-pill';
-      // FIX: text stays on one line (white-space:nowrap already in CSS)
       pill.textContent = lang === 'ar'
         ? `حتى ${s.maxGB} غيغابايت = ${s.priceEGP} جنيه`
         : `Up to ${s.maxGB} GB = ${s.priceEGP} EGP`;
@@ -500,22 +561,46 @@ function calcPrice(gb) {
   return 0;
 }
 
-// ── Products: Paginated Loading ──
-async function loadProducts() {
+// ── Per-category loading ──
+async function loadCategoryPage(cat) {
+  const state = catState[cat];
+  if (!state.hasMore || state.isLoading) return;
+  state.isLoading = true;
+  state.initialized = true;
   try {
-    const q = query(
-      collection(db, 'products'),
-      orderBy('createdAt', 'desc'),
-      limit(PAGE_SIZE)
-    );
-    const snap = await getDocs(q);
+    const baseQ = state.lastVisible
+      ? query(collection(db, cat), orderBy('createdAt','desc'), startAfter(state.lastVisible), limit(PAGE_SIZE))
+      : query(collection(db, cat), orderBy('createdAt','desc'), limit(PAGE_SIZE));
+    const snap = await getDocs(baseQ);
     const docs = snap.docs;
-    lastVisible = docs.length > 0 ? docs[docs.length - 1] : null;
-    hasMore = docs.length === PAGE_SIZE;
-    allProducts = docs.map(d => ({ id: d.id, ...d.data() }));
-    filteredProducts = [...allProducts];
-    buildCats();
-    renderProducts(filteredProducts);
+    if (docs.length > 0) {
+      state.lastVisible = docs[docs.length - 1];
+      state.hasMore = docs.length === PAGE_SIZE;
+      const newProds = docs.map(d => ({ id: d.id, _cat: cat, category: cat, ...d.data() }));
+      state.products = [...state.products, ...newProds];
+    } else {
+      state.hasMore = false;
+    }
+  } catch(e) { console.error('loadCategoryPage error:', cat, e); }
+  state.isLoading = false;
+}
+
+function mergeAllProducts() {
+  allDisplayProducts = CATEGORIES.flatMap(cat => catState[cat].products);
+  allDisplayProducts.sort((a, b) => {
+    const ta = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+    const tb = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+    return tb - ta;
+  });
+}
+
+async function loadProducts() {
+  document.getElementById('productsGrid').innerHTML =
+    '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+  try {
+    await Promise.all(CATEGORIES.map(cat => loadCategoryPage(cat)));
+    mergeAllProducts();
+    applyFilters();
     updateCount();
   } catch {
     document.getElementById('productsGrid').innerHTML =
@@ -523,131 +608,146 @@ async function loadProducts() {
   }
 }
 
-async function loadMoreProducts() {
-  if (!hasMore || isLoadingMore || !lastVisible || allLoaded) return;
-  isLoadingMore = true;
-  document.getElementById('loadingMore').classList.add('show');
-  try {
-    const q = query(
-      collection(db, 'products'),
-      orderBy('createdAt', 'desc'),
-      startAfter(lastVisible),
-      limit(PAGE_SIZE)
-    );
-    const snap = await getDocs(q);
-    const docs = snap.docs;
-    if (docs.length > 0) {
-      lastVisible = docs[docs.length - 1];
-      hasMore = docs.length === PAGE_SIZE;
-      const newProds = docs.map(d => ({ id: d.id, ...d.data() }));
-      allProducts = [...allProducts, ...newProds];
-      buildCats();
-      applyFilters();
-    } else {
-      hasMore = false;
+// ── Filters & Display ──
+function buildCats() {
+  const row = document.getElementById('catsRow');
+  const allBtn = row.querySelector('[data-cat="all"]');
+  // Remove all except allBtn
+  [...row.children].forEach(c => { if (c !== allBtn) c.remove(); });
+  CATEGORIES.forEach(cat => {
+    if (row.querySelector(`[data-cat="${cat}"]`)) return; // already exists
+    const btn = document.createElement('button');
+    btn.className = 'cat-pill' + (cat === currentCat ? ' active' : '');
+    btn.dataset.cat = cat;
+    const ico = CAT_ICONS[cat] || 'fa-folder';
+    btn.innerHTML = `<i class="fa-solid ${ico}"></i><span>${cat}</span>`;
+    btn.addEventListener('click', () => filterCat(cat));
+    row.appendChild(btn);
+  });
+  allBtn.onclick = () => filterCat('all');
+  allBtn.classList.toggle('active', currentCat === 'all');
+}
+
+async function filterCat(cat) {
+  // Exit search mode when changing category
+  if (isSearchMode) {
+    isSearchMode = false;
+    searchQ = '';
+    searchCat = null;
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchChipRow').style.display = 'none';
+    updateSearchPlaceholder();
+  }
+  currentCat = cat;
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === cat));
+
+  if (cat === 'all') {
+    const unloaded = CATEGORIES.filter(c => !catState[c].initialized);
+    if (unloaded.length > 0) {
+      document.getElementById('loadingMore').classList.add('show');
+      await Promise.all(unloaded.map(c => loadCategoryPage(c)));
+      document.getElementById('loadingMore').classList.remove('show');
+      mergeAllProducts();
     }
-  } catch {}
-  isLoadingMore = false;
-  document.getElementById('loadingMore').classList.remove('show');
+    applyFilters();
+  } else {
+    if (!catState[cat].initialized) {
+      document.getElementById('productsGrid').innerHTML =
+        '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+      await loadCategoryPage(cat);
+    }
+    applyFilters();
+  }
+  updateCount();
+  if (cat !== 'all') track('filter_used', { filterCategory: cat });
 }
 
-/**
- * Loads ALL remaining products from Firestore.
- * Called when user types a search query so results aren't cut off by pagination.
- * After this runs once, allLoaded = true and pagination stops.
- */
-async function loadAllForSearch() {
-  if (allLoaded) return;
-  isLoadingMore = true;
-  document.getElementById('loadingMore').classList.add('show');
-  try {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    const snap = await getDocs(q);
-    allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    allLoaded = true;
-    hasMore = false;
-    lastVisible = null;
-    buildCats();
-  } catch {}
-  isLoadingMore = false;
-  document.getElementById('loadingMore').classList.remove('show');
+function applyFilters() {
+  let res;
+  if (isSearchMode && searchCat && searchQ) {
+    const q = searchQ.toLowerCase();
+    res = (catState[searchCat]?.products || []).filter(p =>
+      (p.nameAr && p.nameAr.toLowerCase().includes(q)) ||
+      (p.nameEn && p.nameEn.toLowerCase().includes(q))
+    );
+  } else if (currentCat === 'all') {
+    res = [...allDisplayProducts];
+  } else {
+    res = [...(catState[currentCat]?.products || [])];
+  }
+  filteredProducts = res;
+  visibleCount = VISIBLE_INCREMENT; // reset عند كل فلتر جديد
+  updateCount();
+  renderProducts(filteredProducts);
 }
 
-// ── Intersection Observer for Infinite Scroll ──
+function updateCount() {
+  const total = filteredProducts.length;
+  const shown = Math.min(visibleCount, total);
+  let more = false;
+  if (!isSearchMode) {
+    if (currentCat === 'all') {
+      more = CATEGORIES.some(c => catState[c].hasMore) || visibleCount < total;
+    } else {
+      more = (catState[currentCat]?.hasMore || false) || visibleCount < total;
+    }
+  }
+  document.getElementById('productCount').textContent = shown + (more ? '+' : '');
+}
+
+// ── Infinite Scroll ──
 function setupInfiniteScroll() {
   const sentinel = document.getElementById('scrollSentinel');
-  const observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && hasMore && !isLoadingMore && !searchQ && !allLoaded) {
-      loadMoreProducts();
+  const observer = new IntersectionObserver(async (entries) => {
+    if (!entries[0].isIntersecting || isSearchMode) return;
+
+    // لو في منتجات محمّلة بس مو مرئية، اكشفها أول
+    if (visibleCount < filteredProducts.length) {
+      visibleCount += VISIBLE_INCREMENT;
+      renderProducts(filteredProducts);
+      updateCount();
+      return;
+    }
+
+    // وإلا حمّل المزيد من Firestore
+    if (currentCat === 'all') {
+      const loadable = CATEGORIES.filter(c => catState[c].hasMore && !catState[c].isLoading);
+      if (loadable.length > 0) {
+        document.getElementById('loadingMore').classList.add('show');
+        await Promise.all(loadable.map(c => loadCategoryPage(c)));
+        mergeAllProducts();
+        // أعِد بناء filteredProducts بدون reset visibleCount
+        filteredProducts = [...allDisplayProducts];
+        visibleCount += VISIBLE_INCREMENT;
+        renderProducts(filteredProducts);
+        updateCount();
+        document.getElementById('loadingMore').classList.remove('show');
+      }
+    } else {
+      const state = catState[currentCat];
+      if (state && state.hasMore && !state.isLoading) {
+        document.getElementById('loadingMore').classList.add('show');
+        await loadCategoryPage(currentCat);
+        filteredProducts = [...(catState[currentCat]?.products || [])];
+        visibleCount += VISIBLE_INCREMENT;
+        renderProducts(filteredProducts);
+        updateCount();
+        document.getElementById('loadingMore').classList.remove('show');
+      }
     }
   }, { rootMargin: '200px' });
   observer.observe(sentinel);
 }
 
-function updateCount() {
-  const count = filteredProducts.length;
-  const suffix = (hasMore && !searchQ && !allLoaded) ? '+' : '';
-  document.getElementById('productCount').textContent = count + suffix;
-}
-
-const catIcons = {
-  games:'fa-gamepad',movies:'fa-film',series:'fa-tv',software:'fa-code',
-  anime:'fa-star',cartoons:'fa-child-reaching',courses:'fa-graduation-cap',
-  music:'fa-music',programs:'fa-code',
-  افلام:'fa-film',العاب:'fa-gamepad',برامج:'fa-code'
-};
-
-function buildCats() {
-  const cats = [...new Set(allProducts.map(p=>p.category).filter(Boolean))];
-  const row = document.getElementById('catsRow');
-  const allBtn = row.querySelector('[data-cat="all"]');
-  row.innerHTML = '';
-  row.appendChild(allBtn);
-  cats.forEach(cat => {
-    const btn = document.createElement('button');
-    btn.className = 'cat-pill'; btn.dataset.cat = cat;
-    if (cat === currentCat) btn.classList.add('active');
-    const ico = catIcons[cat.toLowerCase()] || catIcons[cat] || 'fa-folder';
-    btn.innerHTML = `<i class="fa-solid ${ico}"></i><span>${cat}</span>`;
-    btn.addEventListener('click', () => filterCat(cat));
-    row.appendChild(btn);
-  });
-  allBtn.addEventListener('click', () => filterCat('all'));
-  allBtn.classList.toggle('active', currentCat === 'all');
-}
-
-function filterCat(cat) {
-  currentCat = cat;
-  document.querySelectorAll('.cat-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === cat));
-  applyFilters();
-  if (cat !== 'all') track('filter_used', { filterCategory: cat });
-}
-
-function applyFilters() {
-  let res = [...allProducts];
-  if (currentCat !== 'all') res = res.filter(p => p.category === currentCat);
-  if (searchQ) {
-    const q = searchQ.toLowerCase();
-    res = res.filter(p =>
-      // Search both Arabic and English names
-      (p.nameAr && p.nameAr.toLowerCase().includes(q)) ||
-      (p.nameEn && p.nameEn.toLowerCase().includes(q)) ||
-      (p.category && p.category.toLowerCase().includes(q))
-    );
-  }
-  filteredProducts = res;
-  updateCount();
-  renderProducts(res);
-}
-
+// ── Render Products ──
 function renderProducts(prods) {
   const grid = document.getElementById('productsGrid');
   if (!prods.length) {
     grid.innerHTML = `<div class="empty-state"><i class="fa-solid fa-box-open"></i><p>${t('empty')}</p></div>`;
     return;
   }
-  grid.innerHTML = prods.map(p => {
-    // FIX: Always show English name; Arabic name kept for search only
+  const visible = prods.slice(0, visibleCount);
+  grid.innerHTML = visible.map(p => {
     const name = p.nameEn || p.nameAr || '';
     const desc = lang === 'ar' ? (p.descAr || p.descEn || '') : (p.descEn || p.descAr || '');
     const inCart = cart.some(c => c.id === p.id);
@@ -672,11 +772,53 @@ function renderProducts(prods) {
   }).join('');
   grid.querySelectorAll('.add-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const p = allProducts.find(x => x.id === btn.dataset.id);
+      const allProds = CATEGORIES.flatMap(c => catState[c].products);
+      const p = allProds.find(x => x.id === btn.dataset.id);
       if (p) toggleCart(p);
     });
   });
 }
+
+// ── Search Category Picker ──
+window.openSearchCatPicker = function() {
+  document.getElementById('scpOverlay').classList.add('open');
+};
+
+window.closeSearchCatPicker = function() {
+  document.getElementById('scpOverlay').classList.remove('open');
+};
+
+window.pickSearchCat = async function(cat) {
+  searchCat = cat;
+  document.getElementById('scpOverlay').classList.remove('open');
+
+  // Show chip
+  document.getElementById('searchCatChipLabel').textContent = cat;
+  document.getElementById('searchChipRow').style.display = 'flex';
+
+  // Enable search input
+  updateSearchPlaceholder();
+  setTimeout(() => document.getElementById('searchInput').focus(), 50);
+
+  // حمّل الصفحة الأولى فقط إذا ما اتحمّل القسم بعد
+  if (!catState[cat].initialized) {
+    document.getElementById('loadingMore').classList.add('show');
+    await loadCategoryPage(cat);
+    document.getElementById('loadingMore').classList.remove('show');
+    mergeAllProducts();
+  }
+};
+
+window.clearSearch = function() {
+  isSearchMode = false;
+  searchQ = '';
+  searchCat = null;
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchChipRow').style.display = 'none';
+  updateSearchPlaceholder();
+  applyFilters();
+  updateCount();
+};
 
 // ── Cart ──
 function toggleCart(p) {
@@ -711,7 +853,6 @@ function renderCart() {
     summary.style.display = 'none'; btn.disabled = true; return;
   }
   body.innerHTML = cart.map(p => {
-    // FIX: Always show English name in cart too
     const name = p.nameEn || p.nameAr || '';
     const img = p.imageUrl ? `<img src="${p.imageUrl}" alt="${name}" onerror="this.style.display='none'">` : `<i class="fa-solid fa-image"></i>`;
     return `<div class="cart-item">
@@ -818,6 +959,7 @@ async function init() {
   updateBadge();
   renderCart();
   loadIP();
+  buildCats(); // show category tabs immediately before any products load
   await loadSettings();
   loadPricing();
   await loadProducts();
@@ -855,19 +997,35 @@ async function init() {
   document.getElementById('cartOverlay').addEventListener('click', closeCart);
   document.getElementById('checkoutBtn').addEventListener('click', checkout);
 
-  // Search — when user types, load ALL products first so search works across everything
+  // Search input: show picker if no category chosen, else allow typing
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('click', () => {
+    if (!searchCat) {
+      openSearchCatPicker();
+    }
+  });
+
   let searchTimer;
-  document.getElementById('searchInput').addEventListener('input', async e => {
+  searchInput.addEventListener('input', async e => {
+    if (!searchCat) return;
     searchQ = e.target.value.trim();
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(async () => {
+    searchTimer = setTimeout(() => {
       if (searchQ.length > 0) {
-        // Load all products so search covers everything, not just the first page
-        await loadAllForSearch();
-        track('search_used', { query: searchQ });
+        isSearchMode = true;
+        applyFilters();
+        track('search_used', { query: searchQ, category: searchCat });
+      } else {
+        isSearchMode = false;
+        applyFilters();
       }
-      applyFilters();
-    }, 320);
+      updateCount();
+    }, 300);
+  });
+
+  // Close picker on overlay click
+  document.getElementById('scpOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('scpOverlay')) closeSearchCatPicker();
   });
 
   // Page scroll tracking
